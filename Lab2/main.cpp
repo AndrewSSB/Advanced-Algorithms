@@ -1,296 +1,133 @@
-#include <iostream>
-#include <map>
-#include <fstream>
+#include <cstdio> //Double-tree algorithm
+#include <cstring>
 #include <vector>
-#include <math.h>
-#include <list>
-#include <unordered_set>
-#include <unordered_map>
+#include <algorithm>
+#define MAX 100
 
 using namespace std;
 
-struct coords{
-    float x;
-    float y;
-
-    inline coords addCoords(float x, float y){ this->x = x; this->y = y; return *this;}
-
-    bool operator==(coords p){
-        return x == p.x && y == p.y;
-    }
-
-    bool operator!=(coords p){
-        return x != p.x || y != p.y;
-    }
-};
-
-struct cities{
-    coords city1;
-    coords city2;
-
-    cities(coords _x, coords _y){
-        this->city1 = _x;
-        this->city2 = _y;
-    }
-
-    cities(){
-        this->city1.x = 0.0;
-        this->city1.y = 0.0;
-        this->city2.x = 0.0;
-        this->city2.y = 0.0;
-    }
-
-    friend ostream&operator<<(ostream &out, const cities & obj){
-        printf("Oras1(%.2f, %.2f) -> Oras2(%.2f, %.2f): ", obj.city1.x, obj.city1.y, obj.city2.x, obj.city2.y); //imi e lene sa le scriu cu out
-        return out;
-    }
-};
-
-class Graph{
-public:
-    vector<coords> city;
-    //vector<pair<cities, float>> distanceBetweenCities;
-    vector<pair<cities, float>> distanceBetweenCities;
-    float ** distanceBCities;
-    float solution;
+FILE *f, *g;
+struct tree
+{
+    int x, y; //muchie de tipul (x,y) si (y,x) daca graful este neorientat
+    int index;
     float cost;
+} v[MAX];
+int nr_orase,nr_noduri,start=0,viz[MAX];
+float c;
 
-    float distantaEuclidiana(coords, coords);
-    void completeGraph();
+vector<int> adj[MAX];
+vector<int> vec;
+int vis[MAX]; //vectorul pentru vizita din Euler Tour
+int Euler[2*MAX]; //vectorul pentru Euler Tour
 
-    void travelingSalesman();
-    void nearestNeighbour();
-
-    friend istream&operator>>(istream &in, Graph &obj);
-    friend ostream&operator<<(ostream &out, const Graph & obj);
-    Graph(){
-        distanceBCities = nullptr;
-        solution = INT_MAX * 1.0;
-        cost = 1000.0;
+void citire()
+{
+    int i,x,y;
+    double c;
+    fscanf(f,"%d%d",&nr_orase,&nr_noduri); //nr_orase muchii
+    for (i=1;i<=nr_orase;++i)
+    {
+        fscanf(f,"%d%d%f",&v[i].x,&v[i].y,&v[i].cost);
+        v[i].index=i;
     }
-
-    void permute(int * a, int i, int n);
-    void cal_sum(int * a, int n);
-};
-
-istream&operator>>(istream &in, Graph &obj){
-    ifstream fin("date.in");
-    float x, y;
-    coords coordonate;
-    while(fin >> x >> y){
-        obj.city.push_back(coordonate.addCoords(x, y));
-    }
-    fin.close();
-
-    //aici initializez matricea de adiacenta
-    //mai intai verific daca e deja ocupata (sa pot citi din nou)
-    if (obj.distanceBCities != NULL){
-        for (int i = 0; i < (int)obj.city.size(); i++)
-            delete[] obj.distanceBCities[i];
-        delete[] obj.distanceBCities;
-    }
-
-    //aloc matricea ca sa o pot calcula (fac asta ca daca o initializam in costructor nu stiam lungimea ei si nu voiam sa-i dau valori mai mari/mic)
-    obj.distanceBCities = new float*[obj.city.size()];
-    for (int i = 0; i < (int)obj.city.size(); i++){
-        obj.distanceBCities[i] = new float[obj.city.size()];
-    }
-
-    return in;
 }
 
-ostream&operator<<(ostream &out, const Graph & obj){
-    //for (auto u : obj.city)
-    //    out << u.x << " " << u.y << "\n";
-
-    /*for (auto x : obj.distanceBetweenCities){
-        out << x.first << x.second << "\n";
-    }*/
-
-    /*for (int i = 0; i < obj.city.size(); i++){
-        for (int j = 0; j < obj.city.size(); j++)
-            cout << obj.distanceBCities[i][j] << " ";
-        cout << "\n";
-    }*/
-
-    cout << "TSP: " << obj.solution << "\n";
-
-    cout << "Nearest neighbour: " << obj.cost << "\n";
-    return out;
+void add_edge(int u, int v) //adaugarea unei muchii
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
 }
 
-float Graph::distantaEuclidiana(coords a, coords b){
-    return sqrt(pow((b.x - a.x), 2) + pow((b.y - a.y), 2));
+//1. Minimum spanning tree
+void kruskal()
+{
+    /*
+    plecam cu costul 0, alegem muchiile
+    sortate in functie de cost
+    */
+    int i,j,k;
+    c=0;
+    i=1; //plecam cu prima muchie (v[1].x,v[1].y)
+    for(k=1;k<nr_orase;++k)
+    {
+        while(viz[v[i].x]==viz[v[i].y]&&viz[v[i].x]) //daca ambele capete ale muchiei de pe pozitia i au fost vizitate
+            ++i; //crestem i-ul
+        if (v[i].x&&v[i].y)
+        {
+            c+=v[i].cost; //adaugam la cost, cost-ul muchiei de pe pozitia in care cele doua capete ale muchiei nu au fost vizitate (macar unul dintre ele)
+            //fprintf(g,"%d %d\n",v[i].x,v[i].y); //afisam cele doua capete ale muchiei gasite nevizitata
+
+            //2. dublarea arborelui de acoperire de cost minim (introducem nodurile intr-un nou arbore)
+            add_edge(v[i].x,v[i].y);
+            if (!start)
+                start=v[i].x; //root
+        }
+        if(viz[v[i].x]+viz[v[i].y]==0) //daca amandoua nu au fost vizitate
+            viz[v[i].x]=viz[v[i].y]=v[i].x; //le initializam vizita ambelor ca fiind capatul v[i].x
+        else
+            if(viz[v[i].x]*viz[v[i].y]==0) //daca cel putin unul dintre ele a fost vizitat
+            viz[v[i].x]=viz[v[i].y]=viz[v[i].x]+viz[v[i].y]; //le initializam vizita ambleor ca fiind suma viziarilor ambelor capete
+        else
+        {//daca amandoua au fost vizitate
+            for(j=1;j<=nr_orase;++j)
+                if(viz[j]==viz[v[i].x]&&j!=v[i].x)
+                    viz[j]=viz[v[i].y];
+            viz[v[i].x]=viz[v[i].y];
+        }
+        ++i;
+    }
+    fprintf(g,"%.2f\n",c);
 }
 
-void Graph::completeGraph(){
-    for (vector<coords>::iterator it1 = city.begin(); it1 != city.end(); it1++){
-        for (vector<coords>::iterator it2 = city.begin(); it2 != city.end(); it2++){
-            if (it2 != it1){
-                cities aux(*(it1), *(it2));
-                float aux2 = distantaEuclidiana(*(it1), *(it2));
-                distanceBetweenCities.push_back(make_pair(aux, aux2));
+//4. c.
+//Functia care pastreaza Euler Tour al arborelui
+void eulerTree(int u, int &index)
+{
+    vis[u]=1;
+    Euler[index++]=u;
+    for (auto it: adj[u])
+    {
+        if (!vis[it])
+        {
+            eulerTree(it, index);
+            Euler[index++]=u;
+        }
+    }
+}
+
+//Functie care afiseaza Euler Tour al arborelui
+void printEulerTour(int root)
+{
+    int index=0;
+    eulerTree(root,index);
+    for (int i=0;i<(2*nr_noduri-1);++i)
+            {
+                fprintf(g,"%d ",Euler[i]);
+                vec.push_back(Euler[i]);
             }
-        }
-    }
 
-    int len = city.size();
-
-    for (int i = 0; i < len; i++){
-        for (int j = 0; j < len; j++){
-            if (i != j){
-                distanceBCities[i][j] = distantaEuclidiana(city[i], city[j]);
-            }
-            else{
-                distanceBCities[i][j] = 0.0;
-            }
-        }
-    }
+    fprintf(g,"\n");
 }
 
-void TSP(float ** matrix, vector<bool>& v, int currPos, int n, int counter, float cost, float& ans){
-    if (counter == n && matrix[currPos][0]) {
-        ans = min(ans, cost + matrix[currPos][0]);
-        return;
-    }
-
-    for (int i = 0; i < n; i++) {
-        if (!v[i] && matrix[currPos][i]) {
-
-            // Mark as visited
-            v[i] = true;
-            TSP(matrix, v, i, n, counter + 1,
-                cost + matrix[currPos][i], ans);
-
-            // Mark ith node as unvisited
-            v[i] = false;
-        }
-    }
+//5. Remove duplicates
+void remove_duplicate()
+{
+    vector<int>::iterator ip;
+    ip = std::unique(vec.begin(), vec.begin()+nr_noduri);
+    vec.resize(std::distance(vec.begin(), ip));
+    for (ip=vec.begin();ip!=vec.end();++ip)
+        fprintf (g,"%d ",*ip);
+    fprintf (g,"\n");
 }
-
-void Graph::travelingSalesman(){
-    int len = city.size();
-    vector<bool> v(len);
-    for (int i = 0; i < len; i++)
-        v[i] = false;
-
-    v[0] = true;
-
-    TSP(distanceBCities, v, 0, len, 1, 0, solution);
-}
-
-void Graph::nearestNeighbour(){
-    int len = city.size(); //matrice de vizite;
-    bool visited[len][len];
-    for (int i = 0; i < len; i++)
-        for (int j = 0; j < len; j++){
-            visited[i][j] = false;
-        }
-
-    //selectez o muchie a - b
-
-    //float cost = 0.0;
-
-    for (int i = 0; i < len; i++){
-        float cost_min = 1000.0;
-        for (int j = 0; j < len; j++){
-            if (distanceBCities[i][j] < cost_min && visited[i][j] == false && i != j){
-                cost_min = distanceBCities[i][j];
-                visited[i][j] = true;
-            }
-        }
-        cost += cost_min;
-    }
-}
-
-void swap(int *x, int *y){
-    int t;
-    t = *x;
-    *x = *y;
-    *y = t;
-}
-
-void Graph::cal_sum(int * a, int n){
-    int i; float suma = 0;
-    for (i = 0; i <= n; i++)
-        suma+= distanceBCities[a[i%city.size()]][a[(i+1)%city.size()]];
-
-    if (cost > suma){
-        cost = suma;
-    }
-}
-
-void Graph::permute(int *a, int i, int n){
-    int j;
-    if (i == n)
-        cal_sum(a, n);
-    else{
-        for (j = i; j <= n; j++){
-            swap((a + i), (a + j));
-            permute(a, i+1, n);
-            swap((a+i), (a+j));
-        }
-    }
-}
-
-class Chromosome{
-public:
-    int a, b, n;
-    float precizie;
-    vector<bool> numberOfBits;
-
-    Chromosome();
-    Chromosome(int _a, int _b, int _n);
-
-    float transformation();
-};
-
-Chromosome::Chromosome(){
-    this->a = 0;
-    this->b = 0;
-    this->n = 0;
-    this->precizie = 0.0;
-}
-
-Chromosome::Chromosome(int _a, int _b, int _n):numberOfBits(_n, false){
-    this->a = _a;
-    this->b = _b;
-    this->n = _n;
-    this->precizie = (b-a)/pow(2, n);
-}
-
-float Chromosome::transformation(){
-    int j = 0;
-    int number = 0;
-    for (int i = this->numberOfBits.size()-1; i >= 0; i--){
-        number += numberOfBits[i]*pow(2, j);
-        j++;
-    }
-
-    float number_to_return;
-    number_to_return = number * this->precizie;
-    number_to_return += this->a;
-
-    return number_to_return;
-}
-
 int main()
 {
-    Graph test;
-    cin >> test;
-    test.completeGraph();
-    test.travelingSalesman();
-
-    int a[] = {0, 1, 2, 3, 4};
-
-    test.permute(a, 0, 4);
-    cout << test;
-
-    /*Chromosome obj(5, 10, 8);
-    obj.numberOfBits = {0, 1, 0, 1, 0, 0, 1, 0};
-
-    float number = obj.transformation();
-    cout << number; */
-
+    f=fopen("ex1_pct6.in","r");
+    g=fopen("date.out","w");
+    citire();
+    memset(viz,0,sizeof(viz));
+    kruskal();
+    printEulerTour(start);
+    remove_duplicate(); //lista ramasa constituie solutia aprox. a TSP
     return 0;
 }
