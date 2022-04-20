@@ -53,38 +53,6 @@ int determinant(coords A, coords B, coords C){
     return (val > 0) ? 1 : -1;
 }
 
-void convexHull(vector<coords> _coords){
-    if (_coords.size() < 3)
-        return;
-
-    vector<coords> Hull;
-
-    int l = 0;
-    for (int i = 1; i < (int)_coords.size(); i++)
-        if (_coords[i].x < _coords[l].x)
-            l = i; //cel mai stang punct
-
-
-    int p = l, q;
-    do {
-        Hull.push_back(_coords[p]);
-
-        q = (p+1)%_coords.size();
-
-        for (int i = 0; i < (int)_coords.size(); i++){
-            if (determinant(_coords[p], _coords[i], _coords[q]) == -1)
-                q = i;
-        }
-        p = q;
-    } while(p != l);
-
-    cout << Hull.size() << "\n";
-
-    for (auto x : Hull){
-        cout << x << "\n";
-    }
-}
-
 void convexHull_v2(vector<coords> _coords){
     vector<coords> points;
     coords leftMostPoint = _coords[0];
