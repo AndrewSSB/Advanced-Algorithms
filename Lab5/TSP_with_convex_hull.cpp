@@ -141,8 +141,8 @@ void TSP_with_convex_hull(vector<coords> _coords){
         points.insert(points.begin()+best.id, best.point);
     }
 
-    sort(points.begin(), points.end(), [&](coords p1, coords p2){return p1.x < p2.x;});
-    points.push_back(points.front());
+    //sort(points.begin(), points.end(), [&](coords p1, coords p2){return p1.x < p2.x;});
+    //points.push_back(points.front());
     for (auto x : points)
         cout << x << "\n";
 }
