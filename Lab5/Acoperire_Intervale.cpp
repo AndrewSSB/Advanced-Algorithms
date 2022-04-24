@@ -28,7 +28,7 @@ struct interval{
 };
 
 bool comparare(interval A, interval B){
-    return A.a < B.a || A.b < B.b;
+    return A.a < B.a;// || A.b < B.b;
 }
 
 void calculateInterval(vector<interval> intervals, interval base){
@@ -46,11 +46,11 @@ void calculateInterval(vector<interval> intervals, interval base){
         int selectedPoz = INT_MAX;
 
         while (poz < (int)intervals.size() && intervals[poz].a <= a){
-            if (selectedInterv.a == INT_MAX && selectedInterv.b == INT_MAX){
+            if (selectedInterv.a == INT_MAX || selectedInterv.b == INT_MAX){
                 selectedInterv = intervals[poz];
                 selectedPoz = poz;
             }
-            else if (intervals[poz].b >= selectedInterv.b){
+            else if (intervals[poz].b <= selectedInterv.b){
                 selectedInterv = intervals[poz];
                 selectedPoz = poz;
             }
